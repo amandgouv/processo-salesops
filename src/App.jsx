@@ -58,6 +58,8 @@ function TelaCandidato({ apiKey, onFinalizar }) {
   const [avaliando, setAvaliando] = useState(false)
   const [concluido, setConcluido] = useState(false)
   const recRef = useRef(null)
+  const textoRef = useRef("")
+  const [editando, setEditando] = useState(false)
 
   const iniciarGravacao = async () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -65,7 +67,6 @@ function TelaCandidato({ apiKey, onFinalizar }) {
       alert("Seu navegador não suporta gravação de voz. Por favor, use o Google Chrome no computador.")
       return
     }
-    // Pedir permissão explicitamente antes
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch(err) {
@@ -74,14 +75,17 @@ function TelaCandidato({ apiKey, onFinalizar }) {
     }
     if (recRef.current) { try { recRef.current.abort() } catch {} }
     const base = textoFinalizado.trim()
+    textoRef.current = base
     setTexto(base)
+    setEditando(false)
     const r = new SR()
     r.lang = 'pt-BR'; r.continuous = true; r.interimResults = true
     r.onresult = (e) => {
-      const final = Array.from(e.results).filter(x => x.isFinal).map(x => x[0].transcript).join(' ')
+      const todosFinais = Array.from(e.results).filter(x => x.isFinal).map(x => x[0].transcript).join(' ')
       const interim = Array.from(e.results).filter(x => !x.isFinal).map(x => x[0].transcript).join(' ')
-      const prefixo = base ? base + ' ' : ''
-      setTexto(prefixo + final + (interim ? ' ' + interim : ''))
+      const novoTexto = base ? base + ' ' + todosFinais : todosFinais
+      textoRef.current = novoTexto
+      setTexto(novoTexto + (interim ? ' ' + interim : ''))
     }
     r.onerror = (e) => {
       setGravando(false)
@@ -91,7 +95,9 @@ function TelaCandidato({ apiKey, onFinalizar }) {
     }
     r.onend = () => {
       setGravando(false)
-      setTextoFinalizado(texto)
+      setTexto(textoRef.current)
+      setTextoFinalizado(textoRef.current)
+      setEditando(true)
     }
     try {
       recRef.current = r
@@ -105,7 +111,9 @@ function TelaCandidato({ apiKey, onFinalizar }) {
   const pararGravacao = () => {
     setGravando(false)
     if (recRef.current) { try { recRef.current.stop() } catch {} recRef.current = null }
-    setTextoFinalizado(texto)
+    setTexto(textoRef.current)
+    setTextoFinalizado(textoRef.current)
+    setEditando(true)
   }
 
   const proximaPergunta = async () => {
@@ -190,12 +198,21 @@ function TelaCandidato({ apiKey, onFinalizar }) {
         <span style={s.badge}>Pergunta {pergAtual+1} de {PERGUNTAS.length}</span>
         <div style={s.bar}><div style={s.barIn((pergAtual/PERGUNTAS.length)*100)} /></div>
         <div style={s.qbox}><p style={{margin:0,fontSize:'17px',fontWeight:'600',color:'#1e293b',lineHeight:'1.5'}}>{PERGUNTAS[pergAtual]}</p></div>
-        {/* Área de transcrição */}
-        <div style={{background:'#f8fafc',borderRadius:'10px',padding:'16px',minHeight:'100px',marginBottom:'8px',fontSize:'15px',color:texto.trim()?'#1e293b':'#94a3b8',lineHeight:'1.6',border:'2px solid',borderColor:gravando?'#dc2626':'#e2e8f0',transition:'border-color .2s'}}>
-          {texto.trim() || 'A transcrição vai aparecer aqui enquanto você fala...'}
-        </div>
+        {gravando ? (
+          <div style={{background:'#f8fafc',borderRadius:'10px',padding:'16px',minHeight:'100px',marginBottom:'8px',fontSize:'15px',color:texto.trim()?'#1e293b':'#94a3b8',lineHeight:'1.6',border:'2px solid #dc2626'}}>
+            {texto.trim() || 'A transcrição vai aparecer aqui enquanto você fala...'}
+          </div>
+        ) : (
+          <textarea
+            style={{width:'100%',padding:'14px 16px',border:'2px solid',borderColor:editando?'#7c3aed':'#e2e8f0',borderRadius:'10px',fontSize:'15px',boxSizing:'border-box',minHeight:'120px',resize:'vertical',outline:'none',fontFamily:'inherit',lineHeight:'1.6',background:'#f8fafc',marginBottom:'8px'}}
+            placeholder="A transcrição vai aparecer aqui enquanto você fala..."
+            value={texto}
+            onChange={e=>{ setTexto(e.target.value); textoRef.current = e.target.value; setTextoFinalizado(e.target.value) }}
+          />
+        )}
         {gravando && <p style={{color:'#dc2626',fontSize:'13px',margin:'0 0 12px'}}>🔴 Gravando... clique "Parar" quando terminar.</p>}
-        {!gravando && texto.trim() && <p style={{color:'#64748b',fontSize:'13px',margin:'0 0 12px'}}>✅ Gravação finalizada. Grave novamente para adicionar mais, ou avance.</p>}
+        {!gravando && editando && <p style={{color:'#7c3aed',fontSize:'13px',margin:'0 0 12px'}}>✏️ Corrija o texto se precisar, depois avance.</p>}
+        {!gravando && !editando && texto.trim() && <p style={{color:'#64748b',fontSize:'13px',margin:'0 0 12px'}}>✅ Gravação finalizada.</p>}
         <div style={s.row}>
           {!gravando ? (
             <button style={s.btnG} onClick={iniciarGravacao}>
