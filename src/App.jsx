@@ -116,6 +116,15 @@ function TelaCandidato({ apiKey, onFinalizar }) {
     setEditando(true)
   }
 
+  const recomecarGravacao = () => {
+    if (recRef.current) { try { recRef.current.abort() } catch {} recRef.current = null }
+    setTexto("")
+    setTextoFinalizado("")
+    textoRef.current = ""
+    setEditando(false)
+    setGravando(false)
+  }
+
   const proximaPergunta = async () => {
     const textoFinal = texto.trim()
     if (!textoFinal) return
@@ -215,9 +224,14 @@ function TelaCandidato({ apiKey, onFinalizar }) {
         {!gravando && !editando && texto.trim() && <p style={{color:'#64748b',fontSize:'13px',margin:'0 0 12px'}}>✅ Gravação finalizada.</p>}
         <div style={s.row}>
           {!gravando ? (
-            <button style={s.btnG} onClick={iniciarGravacao}>
-              {texto.trim() ? '🎙 Gravar mais' : '🎙 Gravar resposta'}
-            </button>
+            <>
+              <button style={s.btnG} onClick={iniciarGravacao}>
+                {texto.trim() ? '🎙 Continuar' : '🎙 Gravar resposta'}
+              </button>
+              {texto.trim() && (
+                <button style={{...s.btnG, color:'#dc2626'}} onClick={recomecarGravacao}>🗑 Recomeçar</button>
+              )}
+            </>
           ) : (
             <button style={s.btnR} onClick={pararGravacao}>⏹ Parar</button>
           )}
