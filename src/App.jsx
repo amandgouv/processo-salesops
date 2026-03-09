@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { db } from './firebase'
-import { collection, addDoc, getDocs, orderBy, query } from 'firebase/firestore'
+import { collection, addDoc, getDocs, orderBy, query, doc, deleteDoc } from 'firebase/firestore'
 
 const PERGUNTAS = [
   "Quais ferramentas de dados e BI você mais usa no dia a dia? Me conta como você as utiliza no trabalho.",
@@ -116,15 +116,6 @@ function TelaCandidato({ apiKey, onFinalizar }) {
     setEditando(true)
   }
 
-  const recomecarGravacao = () => {
-    if (recRef.current) { try { recRef.current.abort() } catch {} recRef.current = null }
-    setTexto("")
-    setTextoFinalizado("")
-    textoRef.current = ""
-    setEditando(false)
-    setGravando(false)
-  }
-
   const proximaPergunta = async () => {
     const textoFinal = texto.trim()
     if (!textoFinal) return
@@ -224,14 +215,9 @@ function TelaCandidato({ apiKey, onFinalizar }) {
         {!gravando && !editando && texto.trim() && <p style={{color:'#64748b',fontSize:'13px',margin:'0 0 12px'}}>✅ Gravação finalizada.</p>}
         <div style={s.row}>
           {!gravando ? (
-            <>
-              <button style={s.btnG} onClick={iniciarGravacao}>
-                {texto.trim() ? '🎙 Continuar' : '🎙 Gravar resposta'}
-              </button>
-              {texto.trim() && (
-                <button style={{...s.btnG, color:'#dc2626'}} onClick={recomecarGravacao}>🗑 Recomeçar</button>
-              )}
-            </>
+            <button style={s.btnG} onClick={iniciarGravacao}>
+              {texto.trim() ? '🎙 Gravar mais' : '🎙 Gravar resposta'}
+            </button>
           ) : (
             <button style={s.btnR} onClick={pararGravacao}>⏹ Parar</button>
           )}
@@ -265,6 +251,17 @@ function Painel({ onVoltar }) {
   }
 
   useEffect(() => { if (auth) carregarCandidatos() }, [auth])
+
+  const deletarCandidato = async (id, e) => {
+    e.stopPropagation()
+    if (!confirm("Apagar esse candidato?")) return
+    try {
+      await deleteDoc(doc(db, "candidatos", id))
+      setCandidatosState(prev => prev.filter(x => x.id !== id))
+    } catch(e) {
+      alert("Erro ao apagar: " + e.message)
+    }
+  }
 
   const s = {
     page: { minHeight:'100vh', background:'#f8fafc', fontFamily:'system-ui,sans-serif', padding:'32px 20px' },
@@ -311,7 +308,11 @@ function Painel({ onVoltar }) {
         <div key={i} style={s.card} onClick={()=>setExp(exp===i?null:i)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div><strong style={{fontSize:'16px'}}>{x.nome}</strong><span style={{marginLeft:'12px',color:'#94a3b8',fontSize:'13px'}}>{x.data}</span></div>
-            <div style={{display:'flex',gap:'10px',alignItems:'center'}}><span style={s.sc(x.avaliacao?.score||0)}>{x.avaliacao?.score||'?'}/100</span><span style={{fontSize:'18px'}}>{x.avaliacao?.classificacao?.split(' ')[0]}</span></div>
+            <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
+              <span style={s.sc(x.avaliacao?.score||0)}>{x.avaliacao?.score||'?'}/100</span>
+              <span style={{fontSize:'18px'}}>{x.avaliacao?.classificacao?.split(' ')[0]}</span>
+              <button onClick={(e)=>deletarCandidato(x.id,e)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'16px',color:'#dc2626',padding:'4px'}} title="Apagar">🗑</button>
+            </div>
           </div>
           {exp===i && (
             <div style={{marginTop:'20px',borderTop:'1px solid #f1f5f9',paddingTop:'20px'}}>
