@@ -134,7 +134,7 @@ function TelaCandidato({ apiKey, onFinalizar }) {
     } else {
       setAvaliando(true)
       const aval = await avaliarRespostas(apiKey, nome, novas)
-      await addDoc(collection(db, "candidatos-salesops"), {
+      await addDoc(collection(db, "candidatos"), {
         nome, respostas: novas, avaliacao: aval,
         etapa: 'triagem',
         data: new Date().toLocaleDateString("pt-BR"), timestamp: new Date()
@@ -246,9 +246,9 @@ function Painel({ onVoltar, apiKey }) {
   const carregarCandidatos = async () => {
     setCarregando(true)
     try {
-      const q = query(collection(db, "candidatos-salesops"), orderBy("timestamp", "desc"))
+      const q = query(collection(db, "candidatos"), orderBy("timestamp", "desc"))
       const snap = await getDocs(q)
-      setCandidatos(snap.docs.map(d => ({ id: d.id, colecao: "candidatos-salesops", ...d.data() })))
+      setCandidatos(snap.docs.map(d => ({ id: d.id, colecao: "candidatos", ...d.data() })))
     } catch (e) { alert("Erro ao carregar: " + e.message) }
     setCarregando(false)
   }
